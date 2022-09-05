@@ -29,17 +29,20 @@ window.addEventListener('resize', () => {
 })
 
 let color_array = [
-  "#1f78b4",
-  "#b2df8a",
-  "#33a02c",
-  "#fb9a99",
-  "#e31a1c",
-  "#fdbf6f",
-  "#ff7f00",
-  "#6a3d9a",
-  "#cab2d6",
-  "#ffff99"
+  "#ffffff",
+  "#00ff00"
 ]
+
+// Coordinates
+let parcelsList = [];
+let scene = new THREE.Scene();
+let points;
+
+const getData = async () => {
+  const response = await fetch('http://10.10.13.159:5000/api/getAll');
+  parcelsList = await response.json();
+  console.log(parcelsList);
+}
 
 // Add canvas
 let renderer = new THREE.WebGLRenderer();
@@ -52,73 +55,83 @@ let zoom = d3.zoom()
     let d3_transform = d3.event.transform;
     zoomHandler(d3_transform);
   });
-
-view = d3.select(renderer.domElement);
-function setUpZoom() {
-  view.call(zoom);    
-  let initial_scale = getScaleFromZ(far);
-  var initial_transform = d3.zoomIdentity.translate(viz_width/2, height/2).scale(initial_scale);    
-  zoom.transform(view, initial_transform);
-  camera.position.set(0, 0, far);
-}
-setUpZoom();
-
-circle_sprite= new THREE.TextureLoader().load(
-  // "https://fastforwardlabs.github.io/visualization_assets/circle-sprite.png"
-  "./image/1.png"
-)
-
-let radius = 2000;
-
-// Random point in circle code from https://stackoverflow.com/questions/32642399/simplest-way-to-plot-points-randomly-inside-a-circle
-function randomPosition(radius) {
-  var pt_angle = Math.random() * 2 * Math.PI;
-  var pt_radius_sq = Math.random() * radius * radius;
-  var pt_x = Math.sqrt(pt_radius_sq) * Math.cos(pt_angle);
-  var pt_y = Math.sqrt(pt_radius_sq) * Math.sin(pt_angle);
-  return [pt_x, pt_y];
-}
-
+  
+  view = d3.select(renderer.domElement);
+  function setUpZoom() {
+    view.call(zoom);    
+    let initial_scale = getScaleFromZ(far);
+    var initial_transform = d3.zoomIdentity.translate(viz_width/2, height/2).scale(initial_scale);    
+    zoom.transform(view, initial_transform);
+    camera.position.set(0, 0, far);
+  }
+  setUpZoom();
+  
+  circle_sprite= new THREE.TextureLoader().load(
+    // "https://fastforwardlabs.github.io/visualization_assets/circle-sprite.png"
+    "./image/1.png"
+    )
+    
+    let radius = 2000;
+    
+    // Random point in circle code from https://stackoverflow.com/questions/32642399/simplest-way-to-plot-points-randomly-inside-a-circle
+    // const randomPosition = radius => {
+    //   var pt_angle = Math.random() * 2 * Math.PI;
+    //   var pt_radius_sq = Math.random() * radius * radius;
+    //   var pt_x = Math.sqrt(pt_radius_sq) * Math.cos(pt_angle);
+    //   var pt_y = Math.sqrt(pt_radius_sq) * Math.sin(pt_angle);
+    //   return [pt_x, pt_y];
+    // }
+    
 let data_points = [];
-for (let i = 0; i < point_num; i++) {
-  let position = randomPosition(radius);
-  // let position = [0, -i * 1000];
-  let name = 'ID: ' + i;
-  let group = Math.floor(Math.random() * 6);
-  let point = { position, name, group };
-  data_points.push(point);
+// for (let i = 0; i < point_num; i++) {
+//   let position = randomPosition(radius);
+//   // let position = [0, -i * 1000];
+//   let name = 'ID: ' + i;
+//   let group = Math.floor(Math.random() * 6);
+//   let point = { position, name, group };
+//   data_points.push(point);
+// }
+let generated_points;
+
+const start = async () => {
+  await getData();
+
+  parcelsList.forEach(item => {
+    let position = [item.Coordinate.X, item.Coordinate.Y];
+    let name = 'ID: ' + item.ID;
+    // let group = Math.floor(Math.random() * 6);
+    let group = item.Wallet == '' ? 0 : 1;
+    let point = { position, name, group, wallet: item.Wallet };
+    data_points.push(point);
+  });  
+  generated_points = data_points;
+  let pointsGeometry = new THREE.Geometry();
+  
+  let colors = [];
+  for (let datum of generated_points) {
+    // Set vector coordinates from data
+    let vertex = new THREE.Vector3(datum.position[0], datum.position[1], 0);
+    pointsGeometry.vertices.push(vertex);
+    let color = new THREE.Color(color_array[datum.group]);
+    colors.push(color);
+  }
+  pointsGeometry.colors = colors;
+  let pointsMaterial = new THREE.PointsMaterial({
+    size: 140,
+    sizeAttenuation: true,
+    vertexColors: THREE.VertexColors,
+    map: circle_sprite,
+    transparent: true
+  });
+  points = new THREE.Points(pointsGeometry, pointsMaterial);
+  scene.add(points);
+  scene.background = new THREE.Color(0x333333);
 }
 
-let generated_points = data_points;
-
-let pointsGeometry = new THREE.Geometry();
-
-let colors = [];
-for (let datum of generated_points) {
-  // Set vector coordinates from data
-  let vertex = new THREE.Vector3(datum.position[0], datum.position[1], 0);
-  pointsGeometry.vertices.push(vertex);
-  let color = new THREE.Color(color_array[datum.group]);
-  colors.push(color);
-}
-pointsGeometry.colors = colors;
-
-let pointsMaterial = new THREE.PointsMaterial({
-  size: 25,
-  sizeAttenuation: false,
-  vertexColors: THREE.VertexColors,
-  map: circle_sprite,
-  transparent: true
-});
-
-let points = new THREE.Points(pointsGeometry, pointsMaterial);
-
-let scene = new THREE.Scene();
-scene.add(points);
-scene.background = new THREE.Color(0xefefef);
+start();
 
 // Three.js render loop
-function animate() {
+const animate = () => {
   requestAnimationFrame(animate);
   renderer.render(scene, camera);
 }
@@ -188,7 +201,7 @@ raycaster.params.Points.threshold = 50;
 view.on("mousemove", () => {
   let [mouseX, mouseY] = d3.mouse(view.node());
   let mouse_position = [mouseX, mouseY];
-checkIntersects(mouse_position);
+  checkIntersects(mouse_position);
 });
 
 function mouseToThree(mouseX, mouseY) {
@@ -237,7 +250,7 @@ function highlightPoint(datum) {
   geometry.colors = [ new THREE.Color(color_array[datum.group]) ];
 
   let material = new THREE.PointsMaterial({
-    size: 35,
+    size: 30,
     sizeAttenuation: false,
     vertexColors: THREE.VertexColors,
     map: circle_sprite,
@@ -259,18 +272,15 @@ view.on("mouseleave", () => {
 // Initial tooltip state
 let tooltip_state = { display: "none" }
 
-let tooltip_template = document.createRange().createContextualFragment(`<div id="tooltip" style="display: none; position: absolute; pointer-events: none; font-size: 13px; width: 300px; text-align: center; line-height: 1; padding: 6px; background: white; font-family: sans-serif;">
+let tooltip_template = document.createRange().createContextualFragment(`<div id="tooltip" style="display: none; position: absolute; pointer-events: none; font-size: 13px; width: 400px; text-align: center; line-height: 1; padding: 6px; background: white; font-family: sans-serif;">
   <div id="id_tip" style="padding: 4px; margin-bottom: 4px;"></div>
-  <div id="point_tip" style="padding: 4px;"></div>
-  <div id="group_tip" style="padding: 4px;"></div>
+  <div id="wallet_tip" style="padding: 4px;"></div>
 </div>`);
 document.body.append(tooltip_template);
 
 let $tooltip = document.querySelector('#tooltip');
 let $id_tip = document.querySelector('#id_tip');
-let $point_tip = document.querySelector('#point_tip');
-let $group_tip = document.querySelector('#group_tip');
-
+let $wallet_tip = document.querySelector('#wallet_tip');
 
 function updateTooltip() {
   $tooltip.style.display = tooltip_state.display;
@@ -278,13 +288,12 @@ function updateTooltip() {
   $tooltip.style.top = tooltip_state.top + 'px';
   $id_tip.innerText = tooltip_state.name;
   $id_tip.style.background = color_array[tooltip_state.group];
-  $point_tip.innerHTML = tooltip_state.coodinate;
+  $wallet_tip.innerHTML = tooltip_state.wallet;
   // $point_tip.style.background = "#333355";
-  $group_tip.innerText = `Color ${tooltip_state.group}`;
 }
 
 function showTooltip(mouse_position, datum) {
-  let tooltip_width = 300;
+  let tooltip_width = 400;
   let x_offset = -tooltip_width/2;
   let y_offset = 30;
   tooltip_state.display = "block";
@@ -292,6 +301,7 @@ function showTooltip(mouse_position, datum) {
   tooltip_state.top = mouse_position[1] + y_offset;
   tooltip_state.name = datum.name;
   tooltip_state.coodinate = "[" + datum.position + "]";
+  tooltip_state.wallet = datum.wallet;
   tooltip_state.group = datum.group;
   updateTooltip();
 }
