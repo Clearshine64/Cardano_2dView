@@ -7,8 +7,8 @@ let viz_width = width;
 let height = window.innerHeight;
 
 let fov = 40;
-let near = 10;
-let far = 7000;
+let near = 100;
+let far = 6000;
 
 // Set up camera and scene
 let camera = new THREE.PerspectiveCamera(
@@ -29,8 +29,9 @@ window.addEventListener('resize', () => {
 })
 
 let color_array = [
-  "#ffffff",
-  "#00ff00"
+  "#072448",
+  // "#ffffff",
+  "#f8aa4b"
 ]
 
 // Coordinates
@@ -98,10 +99,10 @@ const start = async () => {
 
   parcelsList.forEach(item => {
     let position = [item.Coordinate.X, item.Coordinate.Y];
-    let name = 'ID: ' + item.ID;
-    // let group = Math.floor(Math.random() * 6);
+    let name = item.ID;
     let group = item.Wallet == '' ? 0 : 1;
-    let point = { position, name, group, wallet: item.Wallet };
+    let walletSubstr = item.Wallet.replace(item.Wallet.substr(4, item.Wallet.length - 8), '...');
+    let point = { position, name, group, wallet: walletSubstr };
     data_points.push(point);
   });  
   generated_points = data_points;
@@ -117,7 +118,7 @@ const start = async () => {
   }
   pointsGeometry.colors = colors;
   let pointsMaterial = new THREE.PointsMaterial({
-    size: 140,
+    size: 165,
     sizeAttenuation: true,
     vertexColors: THREE.VertexColors,
     map: circle_sprite,
@@ -125,7 +126,7 @@ const start = async () => {
   });
   points = new THREE.Points(pointsGeometry, pointsMaterial);
   scene.add(points);
-  scene.background = new THREE.Color(0x333333);
+  scene.background = new THREE.Color(0x072448);
 }
 
 start();
@@ -145,17 +146,21 @@ function onDocumentKeyDown(event){
   var keycode = event.keyCode;
   switch(keycode){
     case 37 : //left arrow
-    camera.position.x = camera.position.x - delta;
-    break;
+      if(camera.position.x > -1000)
+        camera.position.x = camera.position.x - delta;
+      break;
     case 38 : // up arrow
-    camera.position.y = camera.position.y + delta;
-    break;
+      if(camera.position.y < 3000)
+        camera.position.y = camera.position.y + delta;
+      break;
     case 39 : // right arrow
-    camera.position.x = camera.position.x + delta;
-    break;
+      if(camera.position.x < 1200)
+        camera.position.x = camera.position.x + delta;
+      break;
     case 40 : //down arrow
-    camera.position.y = camera.position.y - delta;
-    break;
+      if(camera.position.y > -3000)
+        camera.position.y = camera.position.y - delta;
+      break;
   }
   // document.addEventListener('keyup',onDocumentKeyUp,false);
 }
@@ -272,7 +277,7 @@ view.on("mouseleave", () => {
 // Initial tooltip state
 let tooltip_state = { display: "none" }
 
-let tooltip_template = document.createRange().createContextualFragment(`<div id="tooltip" style="display: none; position: absolute; pointer-events: none; font-size: 13px; width: 400px; text-align: center; line-height: 1; padding: 6px; background: white; font-family: sans-serif;">
+let tooltip_template = document.createRange().createContextualFragment(`<div id="tooltip" style="display: none; position: absolute; pointer-events: none; font-size: 13px; width: 200px; text-align: center; line-height: 1; padding: 6px; background: white; font-family: sans-serif;">
   <div id="id_tip" style="padding: 4px; margin-bottom: 4px;"></div>
   <div id="wallet_tip" style="padding: 4px;"></div>
 </div>`);
@@ -286,14 +291,15 @@ function updateTooltip() {
   $tooltip.style.display = tooltip_state.display;
   $tooltip.style.left = tooltip_state.left + 'px';
   $tooltip.style.top = tooltip_state.top + 'px';
-  $id_tip.innerText = tooltip_state.name;
-  $id_tip.style.background = color_array[tooltip_state.group];
+  const zeroPad = (num, places) => String(num).padStart(places, '0');
+  $id_tip.innerText = "ID: " + zeroPad(tooltip_state.name, 5);
+  // $id_tip.style.background = color_array[tooltip_state.group];
   $wallet_tip.innerHTML = tooltip_state.wallet;
   // $point_tip.style.background = "#333355";
 }
 
 function showTooltip(mouse_position, datum) {
-  let tooltip_width = 400;
+  let tooltip_width = 200;
   let x_offset = -tooltip_width/2;
   let y_offset = 30;
   tooltip_state.display = "block";
