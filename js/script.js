@@ -83,20 +83,22 @@ let zoom = d3.zoom()
     //   return [pt_x, pt_y];
     // }
     
-let data_points = [];
-// for (let i = 0; i < point_num; i++) {
-//   let position = randomPosition(radius);
-//   // let position = [0, -i * 1000];
-//   let name = 'ID: ' + i;
-//   let group = Math.floor(Math.random() * 6);
-//   let point = { position, name, group };
-//   data_points.push(point);
-// }
-let generated_points;
-
+    // for (let i = 0; i < point_num; i++) {
+      //   let position = randomPosition(radius);
+      //   // let position = [0, -i * 1000];
+      //   let name = 'ID: ' + i;
+      //   let group = Math.floor(Math.random() * 6);
+      //   let point = { position, name, group };
+      //   data_points.push(point);
+      // }
+      let generated_points;
+      
 const start = async () => {
+  let data_points = [];
   await getData();
 
+  scene = new THREE.Scene();
+  
   parcelsList.forEach(item => {
     let position = [item.Coordinate.X, item.Coordinate.Y];
     let name = item.ID;
@@ -130,6 +132,7 @@ const start = async () => {
 }
 
 start();
+setInterval(start, 20000);
 
 // Three.js render loop
 const animate = () => {
